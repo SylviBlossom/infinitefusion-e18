@@ -287,6 +287,13 @@ class PokemonStorage
     end
   end
 
+  def pbDeleteMulti(box,indexes)
+    for index in indexes
+      self[box,index] = nil
+    end
+    self.party.compact! if box==-1
+  end
+
   def clear
     for i in 0...self.maxBoxes
       @boxes[i].clear
