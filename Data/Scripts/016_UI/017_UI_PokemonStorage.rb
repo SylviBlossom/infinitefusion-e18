@@ -2,11 +2,16 @@
 # Pokémon icons
 #===============================================================================
 class PokemonBoxIcon < IconSprite
+  attr_accessor :heldox
+  attr_accessor :heldoy
+
   def initialize(pokemon, viewport = nil)
     super(0, 0, viewport)
     @pokemon = pokemon
     @release = Interpolator.new
     @startRelease = false
+    @heldox = 0
+    @heldoy = 0
     refresh
   end
 
@@ -163,14 +168,14 @@ end
 # Cursor
 #===============================================================================
 class PokemonBoxArrow < SpriteWrapper
-  attr_accessor :quickswap
+  attr_accessor :cursormode
 
   def initialize(viewport = nil)
     super(viewport)
     @frame = 0
     @holding = false
     @updating = false
-    @quickswap = false
+    @cursormode = "default"
     @grabbingState = 0
     @placingState = 0
     @heldpkmn = nil
@@ -183,10 +188,15 @@ class PokemonBoxArrow < SpriteWrapper
     @handsprite.addBitmap("point2q", "Graphics/Pictures/Storage/cursor_point_2_q")
     @handsprite.addBitmap("grabq", "Graphics/Pictures/Storage/cursor_grab_q")
     @handsprite.addBitmap("fistq", "Graphics/Pictures/Storage/cursor_fist_q")
+    @handsprite.addBitmap("point1m", "Graphics/Pictures/Storage/cursor_point_1_m")
+    @handsprite.addBitmap("point2m", "Graphics/Pictures/Storage/cursor_point_2_m")
+    @handsprite.addBitmap("grabm", "Graphics/Pictures/Storage/cursor_grab_m")
+    @handsprite.addBitmap("fistm", "Graphics/Pictures/Storage/cursor_fist_m")
     @handsprite.changeBitmap("fist")
     @spriteX = self.x
     @spriteY = self.y
     @splicerType = 0
+    @multiheldpkmn = []
   end
 
   def dispose
@@ -219,8 +229,14 @@ class PokemonBoxArrow < SpriteWrapper
 
   def heldPokemon
     @heldpkmn = nil if @heldpkmn && @heldpkmn.disposed?
-    @holding = false if !@heldpkmn
+    @holding = false if !@heldpkmn && @multiheldpkmn.length == 0
     return @heldpkmn
+  end
+
+  def multiHeldPokemon
+    @multiheldpkmn.delete_if { |pkmn| pkmn.disposed? }
+    @holding = false if !@heldpkmn && @multiheldpkmn.length == 0
+    return @multiheldpkmn
   end
 
   def visible=(value)
@@ -228,6 +244,7 @@ class PokemonBoxArrow < SpriteWrapper
     @handsprite.visible = value
     sprite = heldPokemon
     sprite.visible = value if sprite
+    multiHeldPokemon.each { |pkmn| pkmn.visible = value }
   end
 
   def color=(value)
@@ -235,10 +252,15 @@ class PokemonBoxArrow < SpriteWrapper
     @handsprite.color = value
     sprite = heldPokemon
     sprite.color = value if sprite
+    multiHeldPokemon.each { |pkmn| pkmn.color = value }
   end
 
-  def holding?
+  def holdingSingle?
     return self.heldPokemon && @holding
+  end
+
+  def holdingMulti?
+    return @multiheldpkmn.length > 0 && @holding
   end
 
   def grabbing?
@@ -253,14 +275,16 @@ class PokemonBoxArrow < SpriteWrapper
     super
     @handsprite.x = self.x
     @spriteX = x if !@updating
-    heldPokemon.x = self.x if holding?
+    heldPokemon.x = self.x if holdingSingle?
+    multiHeldPokemon.each { |pkmn| pkmn.x = self.x + (pkmn.heldox * 48) } if holdingMulti?
   end
 
   def y=(value)
     super
     @handsprite.y = self.y
     @spriteY = y if !@updating
-    heldPokemon.y = self.y + 16 if holding?
+    heldPokemon.y = self.y + 16 if holdingSingle?
+    multiHeldPokemon.each { |pkmn| pkmn.y = self.y + 16 + (pkmn.heldoy * 48) } if holdingMulti?
   end
 
   def z=(value)
@@ -269,11 +293,23 @@ class PokemonBoxArrow < SpriteWrapper
   end
 
   def setSprite(sprite)
-    if holding?
+    if holdingSingle?
       @heldpkmn = sprite
       @heldpkmn.viewport = self.viewport if @heldpkmn
       @heldpkmn.z = 1 if @heldpkmn
-      @holding = false if !@heldpkmn
+      @holding = false if !@heldpkmn && @multiheldpkmn.length == 0
+      self.z = 2
+    end
+  end
+
+  def setSprites(sprites)
+    if holdingMulti?
+      @multiheldpkmn = sprites
+      for pkmn in @multiheldpkmn
+        pkmn.viewport = self.viewport
+        pkmn.z = 1
+      end
+      @holding = false if !@heldpkmn && @multiheldpkmn.length == 0
       self.z = 2
     end
   end
@@ -283,6 +319,10 @@ class PokemonBoxArrow < SpriteWrapper
     if @heldpkmn
       @heldpkmn.dispose
       @heldpkmn = nil
+    end
+    for pkmn in @multiheldpkmn
+      pkmn.dispose
+      pkmn = nil
     end
   end
 
@@ -294,6 +334,16 @@ class PokemonBoxArrow < SpriteWrapper
     self.z = 2
   end
 
+  def grabMulti(sprites)
+    @grabbingState = 1
+    @multiheldpkmn = sprites
+    for pkmn in @multiheldpkmn
+      pkmn.viewport = self.viewport
+      pkmn.z = 1
+    end
+    self.z = 2
+  end
+
   def place
     @placingState = 1
   end
@@ -302,21 +352,35 @@ class PokemonBoxArrow < SpriteWrapper
     @heldpkmn.release if @heldpkmn
   end
 
+  def getModeSprites
+    case @cursormode
+    when "quickswap"
+      return ["point1q", "point2q", "grabq", "fistq"]
+    when "multiselect"
+      return ["point1m", "point2m", "grabm", "fistm"]
+    else
+      return ["point1", "point2", "grab", "fist"]
+    end
+  end
+
   def update
     @updating = true
     super
     heldpkmn = heldPokemon
     heldpkmn.update if heldpkmn
+    multiheldpkmn = multiHeldPokemon
+    multiheldpkmn.each { |pkmn| pkmn.update }
+    modeSprites = getModeSprites
     @handsprite.update
-    @holding = false if !heldpkmn
+    @holding = false if !heldpkmn && multiheldpkmn.length == 0
     if @grabbingState > 0
       if @grabbingState <= 4 * Graphics.frame_rate / 20
-        @handsprite.changeBitmap((@quickswap) ? "grabq" : "grab")
+        @handsprite.changeBitmap(modeSprites[2]) # grab
         self.y = @spriteY + 4.0 * @grabbingState * 20 / Graphics.frame_rate
         @grabbingState += 1
       elsif @grabbingState <= 8 * Graphics.frame_rate / 20
         @holding = true
-        @handsprite.changeBitmap((@quickswap) ? "fistq" : "fist")
+        @handsprite.changeBitmap(modeSprites[3]) # fist
         self.y = @spriteY + 4 * (8 * Graphics.frame_rate / 20 - @grabbingState) * 20 / Graphics.frame_rate
         @grabbingState += 1
       else
@@ -324,27 +388,28 @@ class PokemonBoxArrow < SpriteWrapper
       end
     elsif @placingState > 0
       if @placingState <= 4 * Graphics.frame_rate / 20
-        @handsprite.changeBitmap((@quickswap) ? "fistq" : "fist")
+        @handsprite.changeBitmap(modeSprites[3]) # fist
         self.y = @spriteY + 4.0 * @placingState * 20 / Graphics.frame_rate
         @placingState += 1
       elsif @placingState <= 8 * Graphics.frame_rate / 20
         @holding = false
         @heldpkmn = nil
-        @handsprite.changeBitmap((@quickswap) ? "grabq" : "grab")
+        @multiheldpkmn = []
+        @handsprite.changeBitmap(modeSprites[2]) # grab
         self.y = @spriteY + 4 * (8 * Graphics.frame_rate / 20 - @placingState) * 20 / Graphics.frame_rate
         @placingState += 1
       else
         @placingState = 0
       end
-    elsif holding?
-      @handsprite.changeBitmap((@quickswap) ? "fistq" : "fist")
+    elsif holdingSingle? || holdingMulti?
+      @handsprite.changeBitmap(modeSprites[3]) # fist
     else
       self.x = @spriteX
       self.y = @spriteY
       if @frame < Graphics.frame_rate / 2
-        @handsprite.changeBitmap((@quickswap) ? "point1q" : "point1")
+        @handsprite.changeBitmap(modeSprites[0]) # point1
       else
-        @handsprite.changeBitmap((@quickswap) ? "point2q" : "point2")
+        @handsprite.changeBitmap(modeSprites[1]) # point2
       end
     end
     @frame += 1
@@ -475,6 +540,40 @@ class PokemonBoxSprite < SpriteWrapper
     if sprite
       arrow.grab(sprite)
       @pokemonsprites[index] = nil
+      update
+    end
+  end
+
+  def placePokemonMulti(index, sprites)
+    arrowX = index % PokemonBox::BOX_WIDTH
+    arrowY = (index / PokemonBox::BOX_WIDTH).floor
+    for sprite in sprites
+      spriteIndex = (sprite.heldox + arrowX) + (sprite.heldoy + arrowY) * PokemonBox::BOX_WIDTH
+      @pokemonsprites[spriteIndex] = sprite
+      @pokemonsprites[spriteIndex].heldox = 0
+      @pokemonsprites[spriteIndex].heldoy = 0
+      @pokemonsprites[spriteIndex].refresh
+    end
+    if sprites.length > 0
+      update
+    end
+  end
+
+  def grabPokemonMulti(indexes, arrowIndex, arrow)
+    grabbedSprites = []
+    arrowX = arrowIndex % PokemonBox::BOX_WIDTH
+    arrowY = (arrowIndex / PokemonBox::BOX_WIDTH).floor
+    for index in indexes
+      sprite = @pokemonsprites[index]
+      if sprite
+        sprite.heldox = (index % PokemonBox::BOX_WIDTH) - arrowX
+        sprite.heldoy = (index / PokemonBox::BOX_WIDTH).floor - arrowY
+        grabbedSprites.push(sprite)
+        @pokemonsprites[index] = nil
+      end
+    end
+    if grabbedSprites.length > 0
+      arrow.grabMulti(grabbedSprites)
       update
     end
   end
@@ -613,6 +712,39 @@ class PokemonBoxPartySprite < SpriteWrapper
     end
   end
 
+  def placePokemonMulti(index, sprites)
+    partyIndex = @pokemonsprites.count { |i| i }
+    for sprite in sprites
+      @pokemonsprites[partyIndex] = sprite
+      @pokemonsprites[partyIndex].heldox = 0
+      @pokemonsprites[partyIndex].heldoy = 0
+      @pokemonsprites[partyIndex].refresh
+      partyIndex += 1
+    end
+    if sprites.length > 0
+      update
+    end
+  end
+
+  def grabPokemonMulti(indexes, arrowIndex, arrow)
+    grabbedSprites = []
+    arrowX = arrowIndex % 2
+    arrowY = (arrowIndex / 2).floor
+    for index in indexes
+      sprite = @pokemonsprites[index]
+      if sprite
+        sprite.heldox = (index % 2) - arrowX
+        sprite.heldoy = (index / 2).floor - arrowY
+        grabbedSprites.push(sprite)
+        @pokemonsprites[index] = nil
+      end
+    end
+    if grabbedSprites.length > 0
+      arrow.grabMulti(grabbedSprites)
+      update
+    end
+  end
+
   def deletePokemon(index)
     @pokemonsprites[index].dispose
     @pokemonsprites[index] = nil
@@ -657,7 +789,7 @@ end
 # Pokémon storage visuals
 #===============================================================================
 class PokemonStorageScene
-  attr_reader :quickswap
+  attr_reader :cursormode
   attr_accessor :sprites
 
   def initialize
@@ -693,7 +825,7 @@ class PokemonStorageScene
     @viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
     @viewport.z = 99999
     @selection = 0
-    @quickswap = false
+    @cursormode = "default"
     @sprites = {}
     @choseFromParty = false
     @command = command
@@ -721,6 +853,8 @@ class PokemonStorageScene
     @sprites["markingoverlay"] = BitmapSprite.new(Graphics.width, Graphics.height, @boxsidesviewport)
     @sprites["markingoverlay"].visible = false
     pbSetSystemFont(@sprites["markingoverlay"].bitmap)
+    @sprites["selectionrect"] = BitmapSprite.new(Graphics.width, Graphics.height, @arrowviewport)
+    @sprites["selectionrect"].visible = false
     @sprites["arrow"] = PokemonBoxArrow.new(@arrowviewport)
     @sprites["arrow"].z += 1
     if command != 2
@@ -823,7 +957,10 @@ class PokemonStorageScene
   def pbChangeSelection(key, selection)
     case key
     when Input::UP
-      if selection == -1 # Box name
+      if @screen.multiSelectRange
+        selection -= PokemonBox::BOX_WIDTH
+        selection += PokemonBox::BOX_SIZE if selection < 0
+      elsif selection == -1 # Box name
         selection = -2
       elsif selection == -2 # Party
         selection = PokemonBox::BOX_SIZE - 1 - PokemonBox::BOX_WIDTH * 2 / 3 # 25
@@ -834,7 +971,10 @@ class PokemonStorageScene
         selection = -1 if selection < 0
       end
     when Input::DOWN
-      if selection == -1 # Box name
+      if @screen.multiSelectRange
+        selection += PokemonBox::BOX_WIDTH
+        selection -= PokemonBox::BOX_SIZE if selection >= PokemonBox::BOX_SIZE
+      elsif selection == -1 # Box name
         selection = PokemonBox::BOX_WIDTH / 3 # 2
       elsif selection == -2 # Party
         selection = -1
@@ -851,7 +991,13 @@ class PokemonStorageScene
         end
       end
     when Input::LEFT
-      if selection == -1 # Box name
+      if @screen.multiSelectRange
+        if (selection % PokemonBox::BOX_WIDTH) == 0 # Wrap around
+          selection += PokemonBox::BOX_WIDTH - 1
+        else
+          selection -= 1
+        end
+      elsif selection == -1 # Box name
         selection = -4 # Move to previous box
       elsif selection == -2
         selection = -3
@@ -863,7 +1009,13 @@ class PokemonStorageScene
         selection -= 1
       end
     when Input::RIGHT
-      if selection == -1 # Box name
+      if @screen.multiSelectRange
+        if (selection % PokemonBox::BOX_WIDTH) == PokemonBox::BOX_WIDTH - 1 # Wrap around
+          selection -= PokemonBox::BOX_WIDTH - 1
+        else
+          selection += 1
+        end
+      elsif selection == -1 # Box name
         selection = -5 # Move to next box
       elsif selection == -2
         selection = -3
@@ -951,6 +1103,9 @@ class PokemonStorageScene
         selection = -1 if selection == -4 || selection == -5
         pbUpdateOverlay(selection)
         pbSetMosaic(selection)
+        if @screen.multiSelectRange
+          pbUpdateSelectionRect(@storage.currentBox, selection)
+        end
       end
       self.update
       if Input.trigger?(Input::JUMPUP)
@@ -977,7 +1132,7 @@ class PokemonStorageScene
         end
       elsif Input.trigger?(Input::ACTION) && @command == 0 # Organize only
         pbPlayDecisionSE
-        pbSetQuickSwap(!@quickswap)
+        pbNextCursorMode
       elsif Input.trigger?(Input::BACK)
         @selection = selection
         return nil
@@ -1052,11 +1207,14 @@ class PokemonStorageScene
         lastsel = selection if selection > 0
         pbUpdateOverlay(selection, party)
         pbSetMosaic(selection)
+        if @screen.multiSelectRange
+          pbUpdateSelectionRect(-1, selection)
+        end
       end
       self.update
       if Input.trigger?(Input::ACTION) && @command == 0 # Organize only
         pbPlayDecisionSE
-        pbSetQuickSwap(!@quickswap)
+        pbNextCursorMode
       elsif Input.trigger?(Input::BACK)
         @selection = selection
         return -1
@@ -1161,7 +1319,7 @@ class PokemonStorageScene
   end
 
   def pbSetMosaic(selection)
-    if !@screen.pbHeldPokemon
+    if !@screen.pbHolding?
       if @boxForMosaic != @storage.currentBox || @selectionForMosaic != selection
         @sprites["pokemon"].mosaic = Graphics.frame_rate / 4
         @boxForMosaic = @storage.currentBox
@@ -1170,9 +1328,24 @@ class PokemonStorageScene
     end
   end
 
-  def pbSetQuickSwap(value)
-    @quickswap = value
-    @sprites["arrow"].quickswap = value
+  def pbNextCursorMode()
+    case @cursormode
+    when "default"
+      pbSetCursorMode("quickswap")
+    when "quickswap"
+      pbSetCursorMode((@screen.pbHolding?) ? "default" : "multiselect")
+    when "multiselect"
+      pbSetCursorMode("default") if !@screen.pbHolding?
+    end
+  end
+
+  def pbSetCursorMode(value)
+    @cursormode = value
+    @sprites["arrow"].cursormode = value
+    if @screen.multiSelectRange
+      @screen.multiSelectRange = nil
+      pbUpdateSelectionRect(@choseFromParty ? -1 : @storage.currentBox, 0)
+    end
   end
 
   def pbShowPartyTab
@@ -1296,6 +1469,63 @@ class PokemonStorageScene
       while sprite.releasing?
         Graphics.update
         sprite.update
+        self.update
+      end
+    end
+  end
+
+  def pbHoldMulti(box, selected, selectedIndex)
+    pbSEPlay("GUI storage pick up")
+    if box == -1
+      @sprites["boxparty"].grabPokemonMulti(selected, selectedIndex, @sprites["arrow"])
+    else
+      @sprites["box"].grabPokemonMulti(selected, selectedIndex, @sprites["arrow"])
+    end
+    while @sprites["arrow"].grabbing?
+      Graphics.update
+      Input.update
+      self.update
+    end
+  end
+
+  def pbPlaceMulti(box, index)
+    pbSEPlay("GUI storage put down")
+    heldpokesprites = @sprites["arrow"].multiHeldPokemon
+    @sprites["arrow"].place
+    while @sprites["arrow"].placing?
+      Graphics.update
+      Input.update
+      self.update
+    end
+    if box == -1
+      @sprites["boxparty"].placePokemonMulti(index, heldpokesprites)
+    else
+      @sprites["box"].placePokemonMulti(index, heldpokesprites)
+    end
+    @boxForMosaic = @storage.currentBox
+    @selectionForMosaic = index
+  end
+
+  def pbReleaseMulti(box, selected)
+    releaseSprites = []
+    for index in selected
+      sprite = nil
+      if box == -1
+        sprite = @sprites["boxparty"].getPokemon(index)
+      else
+        sprite = @sprites["box"].getPokemon(index)
+      end
+      releaseSprites.push(sprite) if sprite
+    end
+    if releaseSprites.length > 0
+      for sprite in releaseSprites
+        sprite.release
+      end
+      while releaseSprites[0].releasing?
+        Graphics.update
+        for sprite in releaseSprites
+          sprite.update
+        end
         self.update
       end
     end
@@ -1515,7 +1745,7 @@ class PokemonStorageScene
       [_INTL("Exit"), 446, 326, 2, buttonbase, buttonshadow, 1],
     ])
     pokemon = nil
-    if @screen.pbHeldPokemon && !@screen.fusionMode
+    if @screen.pbHolding? && !@screen.fusionMode
       pokemon = @screen.pbHeldPokemon
     elsif selection >= 0
       pokemon = (party) ? party[selection] : @storage[@storage.currentBox, selection]
@@ -1574,6 +1804,40 @@ class PokemonStorageScene
     @sprites["pokemon"].setPokemonBitmap(pokemon)
   end
 
+  def pbUpdateSelectionRect(box, selected)
+    if !@screen.multiSelectRange
+      @sprites["selectionrect"].visible = false
+      return
+    end
+
+    displayRect = Rect.new(0, 0, 1, 1)
+
+    if box == -1
+      xvalues = [] # [18, 90, 18, 90, 18, 90]
+      yvalues = [] # [2, 18, 66, 82, 130, 146]
+      for i in 0...Settings::MAX_PARTY_SIZE
+        xvalues.push(@sprites["boxparty"].x + 18 + 72 * (i % 2))
+        yvalues.push(@sprites["boxparty"].y + 2 + 16 * (i % 2) + 64 * (i / 2))
+      end
+      indexes = @screen.getMultiSelection(box, selected)
+      minx = xvalues[indexes[0]]
+      miny = yvalues[indexes[0]] + 16
+      maxx = xvalues[indexes[indexes.length-1]] + 72 - 8
+      maxy = yvalues[indexes[indexes.length-1]] + 64
+      displayRect.set(minx, miny, maxx-minx, maxy-miny)
+    else
+      indexRect = @screen.getSelectionRect(box, selected)
+      displayRect.x = @sprites["box"].x + 10 + (48 * indexRect.x)
+      displayRect.y = @sprites["box"].y + 30 + (48 * indexRect.y) + 16
+      displayRect.width = indexRect.width * 48 + 16
+      displayRect.height = indexRect.height * 48
+    end
+
+    @sprites["selectionrect"].bitmap.clear
+    @sprites["selectionrect"].bitmap.fill_rect(displayRect.x, displayRect.y, displayRect.width, displayRect.height, Color.new(0, 255, 0, 100))
+    @sprites["selectionrect"].visible = true
+  end
+
   def update
     pbUpdateSpriteHash(@sprites)
   end
@@ -1599,29 +1863,39 @@ class PokemonStorageScreen
   attr_reader :scene
   attr_reader :storage
   attr_accessor :heldpkmn
+  attr_accessor :multiheldpkmn
   attr_accessor :fusionMode
+  attr_accessor :multiSelectRange
 
   def initialize(scene, storage)
     @scene = scene
     @storage = storage
     @pbHeldPokemon = nil
+    @multiheldpkmn = []
   end
 
   def pbStartScreen(command)
     @heldpkmn = nil
+    @multiheldpkmn = []
     if command == 0 # Organise
       @scene.pbStartBox(self, command)
       loop do
         selected = @scene.pbSelectBox(@storage.party)
         if selected == nil
-          if pbHeldPokemon
+          if pbHolding?
             pbDisplay(_INTL("You're holding a Pokémon!"))
+            next
+          end
+          if @multiSelectRange
+            pbPlayCancelSE
+            @multiSelectRange = nil
+            @scene.pbUpdateSelectionRect(0, 0)
             next
           end
           next if pbConfirm(_INTL("Continue Box operations?"))
           break
         elsif selected[0] == -3 # Close box
-          if pbHeldPokemon
+          if pbHolding?
             pbDisplay(_INTL("You're holding a Pokémon!"))
             next
           end
@@ -1635,8 +1909,54 @@ class PokemonStorageScreen
         else
           pokemon = @storage[selected[0], selected[1]]
           heldpoke = pbHeldPokemon
-          next if !pokemon && !heldpoke
-          if @scene.quickswap
+          if @scene.cursormode == "multiselect"
+            if pbMultiHeldPokemon.length > 0
+              pbPlaceMulti(selected[0], selected[1])
+            elsif !@multiSelectRange
+              pbPlayDecisionSE
+              @multiSelectRange = [selected[1], nil]
+              @scene.pbUpdateSelectionRect(selected[0], selected[1])
+              next
+            elsif !@multiSelectRange[1]
+              @multiSelectRange[1] = selected[1]
+
+              pokemonCount = 0
+              for index in getMultiSelection(selected[0], nil)
+                pokemonCount += 1 if @storage[selected[0], index]
+              end
+
+              if pokemonCount == 0
+                pbPlayCancelSE
+                @multiSelectRange = nil
+                @scene.pbUpdateSelectionRect(selected[0], selected[1])
+                next
+              end
+
+              commands = []
+              cmdMove = -1
+              cmdRelease = -1
+              cmdCancel = -1
+
+              helptext = _INTL("Selected {1} Pokémon.", pokemonCount)
+
+              commands[cmdMove = commands.length] = _INTL("Move")
+              commands[cmdRelease = commands.length] = _INTL("Release")
+              commands[cmdCancel = commands.length] = _INTL("Cancel")
+
+              command = pbShowCommands(helptext, commands)
+
+              if command == cmdMove
+                pbHoldMulti(selected[0], selected[1])
+              elsif command == cmdRelease
+                pbReleaseMulti(selected[0])
+              end
+
+              @multiSelectRange = nil
+              @scene.pbUpdateSelectionRect(selected[0], selected[1])
+            end
+          elsif !pokemon && !heldpoke
+            next
+          elsif @scene.cursormode == "quickswap"
             if @heldpkmn
               (pokemon) ? pbSwap(selected) : pbPlace(selected)
             else
@@ -1877,6 +2197,14 @@ class PokemonStorageScreen
     return @heldpkmn
   end
 
+  def pbMultiHeldPokemon
+    return @multiheldpkmn
+  end
+
+  def pbHolding?
+    return @heldpkmn != nil || @multiheldpkmn.length > 0
+  end
+
   def pbWithdraw(selected, heldpoke)
     box = selected[0]
     index = selected[1]
@@ -2039,6 +2367,113 @@ class PokemonStorageScreen
       @scene.pbRefresh
       pbDisplay(_INTL("{1} was released.", pkmnname))
       pbDisplay(_INTL("Bye-bye, {1}!", pkmnname))
+      @scene.pbRefresh
+    end
+    return
+  end
+
+  def pbHoldMulti(box, selectedIndex)
+    selected = getMultiSelection(box, nil)
+    return if selected.length == 0
+    selectedPos = getBoxPosition(box, selectedIndex)
+    ableCount = 0
+    newHeld = []
+    for index in selected
+      pokemon = @storage[box, index]
+      next if !pokemon
+      ableCount += 1 if pbAble?(pokemon)
+      pos = getBoxPosition(box, index)
+      newHeld.push([pokemon, pos[0] - selectedPos[0], pos[1] - selectedPos[1]])
+    end
+    if box == -1 && pbAbleCount == ableCount
+      pbPlayBuzzerSE
+      pbDisplay(_INTL("That's your last Pokémon!"))
+      return
+    end
+    @multiSelectRange = nil
+    @scene.pbUpdateSelectionRect(0, 0)
+    @scene.pbHoldMulti(box, selected, selectedIndex)
+    @multiheldpkmn = newHeld
+    @storage.pbDeleteMulti(box, selected)
+    @scene.pbRefresh
+  end
+
+  def pbPlaceMulti(box, selectedIndex)
+    selectedPos = getBoxPosition(box, selectedIndex)
+    boxWidth = box == -1 ? 2 : PokemonBox::BOX_WIDTH
+    boxHeight = box == -1 ? (Settings::MAX_PARTY_SIZE / 2).ceil : PokemonBox::BOX_HEIGHT
+    if box >= 0
+      for held in @multiheldpkmn
+        heldX = held[1] + selectedPos[0]
+        heldY = held[2] + selectedPos[1]
+        if heldX < 0 || heldX >= PokemonBox::BOX_WIDTH || heldY < 0 || heldY >= PokemonBox::BOX_HEIGHT
+          pbDisplay("Can't place that there.")
+          return
+        end
+        if @storage[box, heldX + heldY * PokemonBox::BOX_WIDTH]
+          pbDisplay("Can't place that there.")
+          return
+        end
+      end
+      @scene.pbPlaceMulti(box, selectedIndex)
+      for held in @multiheldpkmn
+        pokemon = held[0]
+        heldX = held[1] + selectedPos[0]
+        heldY = held[2] + selectedPos[1]
+        pokemon.time_form_set = nil
+        pokemon.form = 0 if pokemon.isSpecies?(:SHAYMIN)
+        pokemon.heal
+        @storage[box, heldX + heldY * PokemonBox::BOX_WIDTH] = pokemon
+      end
+    else
+      partyCount = @storage.party.length
+      if partyCount + @multiheldpkmn.length > Settings::MAX_PARTY_SIZE
+        pbDisplay("Can't place that there.")
+        return
+      end
+      @scene.pbPlaceMulti(box, selectedIndex)
+      for held in @multiheldpkmn
+        pokemon = held[0]
+        pokemon.time_form_set = nil
+        pokemon.form = 0 if pokemon.isSpecies?(:SHAYMIN)
+        pokemon.heal
+        @storage.party.push(pokemon)
+      end
+    end
+    @scene.pbRefresh
+    @multiheldpkmn = []
+  end
+
+  def pbReleaseMulti(box)
+    selected = getMultiSelection(box, nil)
+    return if selected.length == 0
+    ableCount = 0
+    finalReleased = []
+    for index in selected
+      pokemon = @storage[box, index]
+      next if !pokemon
+      if pokemon.egg?
+        pbDisplay(_INTL("You can't release an Egg."))
+        return false
+      elsif pokemon.mail
+        pbDisplay(_INTL("Please remove the mail."))
+        return false
+      end
+      ableCount += 1 if pbAble?(pokemon)
+      finalReleased.push(index)
+    end
+    if box == -1 && pbAbleCount == ableCount
+      pbPlayBuzzerSE
+      pbDisplay(_INTL("That's your last Pokémon!"))
+      return
+    end
+    command = pbShowCommands(_INTL("Release {1} Pokémon?", finalReleased.length), [_INTL("No"), _INTL("Yes")])
+    if command == 1
+      @scene.pbReleaseMulti(box, finalReleased)
+      @storage.pbDeleteMulti(box, finalReleased)
+      @scene.pbRefresh
+      pbDisplay(_INTL("The Pokémon were released."))
+      pbDisplay(_INTL("Bye-bye!"))
       @scene.pbRefresh
     end
     return
@@ -2413,4 +2848,49 @@ class PokemonStorageScreen
     return nil
   end
 
+  def getBoxPosition(box, index)
+    boxWidth = box == -1 ? 2 : PokemonBox::BOX_WIDTH
+    return index % boxWidth, (index.to_f / boxWidth).floor
+  end
+
+  def getBoxIndex(box, x, y)
+    boxWidth = box == -1 ? 2 : PokemonBox::BOX_WIDTH
+    return x + y * boxWidth
+  end
+
+  def getSelectionRect(box, currentSelected)
+    rangeEnd = (currentSelected != nil ? currentSelected : @multiSelectRange[1])
+
+    if !@multiSelectRange || !@multiSelectRange[0] || !rangeEnd
+      return nil
+    end
+
+    boxWidth = box == -1 ? 2 : PokemonBox::BOX_WIDTH
+
+    ax = @multiSelectRange[0] % boxWidth
+    ay = (@multiSelectRange[0].to_f / boxWidth).floor
+    bx = rangeEnd % boxWidth
+    by = (rangeEnd.to_f / boxWidth).floor
+
+    minx = [ax, bx].min
+    miny = [ay, by].min
+    maxx = [ax, bx].max
+    maxy = [ay, by].max
+
+    return Rect.new(minx, miny, maxx-minx+1, maxy-miny+1)
+  end
+
+  def getMultiSelection(box, currentSelected)
+    rect = getSelectionRect(box, currentSelected)
+
+    ret = []
+
+    for i in (rect.x)..(rect.x+rect.width-1)
+      for j in (rect.y)..(rect.y+rect.height-1)
+        ret.push(getBoxIndex(box, i, j))
+      end
+    end
+
+    return ret
+  end
 end
