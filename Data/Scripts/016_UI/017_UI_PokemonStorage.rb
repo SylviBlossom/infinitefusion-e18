@@ -2371,23 +2371,36 @@ class PokemonStorageScreen
     selectedPos = getBoxPosition(box, selectedIndex)
     ableCount = 0
     newHeld = []
+    finalSelected = []
     for index in selected
       pokemon = @storage[box, index]
       next if !pokemon
       ableCount += 1 if pbAble?(pokemon)
       pos = getBoxPosition(box, index)
       newHeld.push([pokemon, pos[0] - selectedPos[0], pos[1] - selectedPos[1]])
+      finalSelected.push(index)
     end
     if box == -1 && pbAbleCount == ableCount
-      pbPlayBuzzerSE
-      pbDisplay(_INTL("That's your last Pokémon!"))
-      return
+      if newHeld.length > 1
+        # For convenience: if you selected every Pokémon in the party, deselect the first one
+        for i in 0...newHeld.length
+          if pbAble?(newHeld[i][0])
+            newHeld.delete_at(i)
+            finalSelected.delete_at(i)
+            break
+          end
+        end
+      else
+        pbPlayBuzzerSE
+        pbDisplay(_INTL("That's your last Pokémon!"))
+        return
+      end
     end
     @multiSelectRange = nil
     @scene.pbUpdateSelectionRect(0, 0)
-    @scene.pbHoldMulti(box, selected, selectedIndex)
+    @scene.pbHoldMulti(box, finalSelected, selectedIndex)
     @multiheldpkmn = newHeld
-    @storage.pbDeleteMulti(box, selected)
+    @storage.pbDeleteMulti(box, finalSelected)
     @scene.pbRefresh
   end
 
