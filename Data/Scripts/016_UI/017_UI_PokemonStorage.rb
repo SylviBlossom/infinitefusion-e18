@@ -4,6 +4,7 @@
 class PokemonBoxIcon < IconSprite
   attr_accessor :heldox
   attr_accessor :heldoy
+  attr_accessor :pokemon
 
   def initialize(pokemon, viewport = nil)
     super(0, 0, viewport)
@@ -202,6 +203,7 @@ class PokemonBoxArrow < SpriteWrapper
   def dispose
     @handsprite.dispose
     @heldpkmn.dispose if @heldpkmn
+    @multiheldpkmn.each { |pkmn| pkmn.dispose }
     super
   end
 
@@ -320,10 +322,8 @@ class PokemonBoxArrow < SpriteWrapper
       @heldpkmn.dispose
       @heldpkmn = nil
     end
-    for pkmn in @multiheldpkmn
-      pkmn.dispose
-      pkmn = nil
-    end
+    @multiheldpkmn.each { |pkmn| pkmn.dispose }
+    @multiheldpkmn = []
   end
 
   def grab(sprite)
@@ -550,12 +550,10 @@ class PokemonBoxSprite < SpriteWrapper
     for sprite in sprites
       spriteIndex = (sprite.heldox + arrowX) + (sprite.heldoy + arrowY) * PokemonBox::BOX_WIDTH
       @pokemonsprites[spriteIndex] = sprite
-      @pokemonsprites[spriteIndex].heldox = 0
-      @pokemonsprites[spriteIndex].heldoy = 0
       @pokemonsprites[spriteIndex].refresh
     end
     if sprites.length > 0
-      update
+      refresh
     end
   end
 
@@ -565,7 +563,7 @@ class PokemonBoxSprite < SpriteWrapper
     arrowY = (arrowIndex / PokemonBox::BOX_WIDTH).floor
     for index in indexes
       sprite = @pokemonsprites[index]
-      if sprite
+      if sprite && sprite.pokemon && !sprite.disposed?
         sprite.heldox = (index % PokemonBox::BOX_WIDTH) - arrowX
         sprite.heldoy = (index / PokemonBox::BOX_WIDTH).floor - arrowY
         grabbedSprites.push(sprite)
@@ -713,16 +711,14 @@ class PokemonBoxPartySprite < SpriteWrapper
   end
 
   def placePokemonMulti(index, sprites)
-    partyIndex = @pokemonsprites.count { |i| i }
+    partyIndex = @pokemonsprites.count { |i| i && i.pokemon && !i.disposed? }
     for sprite in sprites
       @pokemonsprites[partyIndex] = sprite
-      @pokemonsprites[partyIndex].heldox = 0
-      @pokemonsprites[partyIndex].heldoy = 0
-      @pokemonsprites[partyIndex].refresh
       partyIndex += 1
     end
     if sprites.length > 0
-      update
+      @pokemonsprites.compact!
+      refresh
     end
   end
 
@@ -732,7 +728,7 @@ class PokemonBoxPartySprite < SpriteWrapper
     arrowY = (arrowIndex / 2).floor
     for index in indexes
       sprite = @pokemonsprites[index]
-      if sprite
+      if sprite && sprite.pokemon && !sprite.disposed?
         sprite.heldox = (index % 2) - arrowX
         sprite.heldoy = (index / 2).floor - arrowY
         grabbedSprites.push(sprite)
@@ -741,7 +737,8 @@ class PokemonBoxPartySprite < SpriteWrapper
     end
     if grabbedSprites.length > 0
       arrow.grabMulti(grabbedSprites)
-      update
+      @pokemonsprites.compact!
+      refresh
     end
   end
 
@@ -1049,26 +1046,29 @@ class PokemonStorageScene
   end
 
   def pbPartyChangeSelection(key, selection)
+    maxIndex = @screen.multiSelectRange ? Settings::MAX_PARTY_SIZE - 1 : Settings::MAX_PARTY_SIZE
     case key
     when Input::LEFT
       selection -= 1
-      selection = Settings::MAX_PARTY_SIZE if selection < 0
+      selection = maxIndex if selection < 0
     when Input::RIGHT
       selection += 1
-      selection = 0 if selection > Settings::MAX_PARTY_SIZE
+      selection = 0 if selection > maxIndex
     when Input::UP
       if selection == Settings::MAX_PARTY_SIZE
         selection = Settings::MAX_PARTY_SIZE - 1
       else
         selection -= 2
-        selection = Settings::MAX_PARTY_SIZE if selection < 0
+        selection = selection % Settings::MAX_PARTY_SIZE if @screen.multiSelectRange
+        selection = maxIndex if selection < 0
       end
     when Input::DOWN
       if selection == Settings::MAX_PARTY_SIZE
         selection = 0
       else
         selection += 2
-        selection = Settings::MAX_PARTY_SIZE if selection > Settings::MAX_PARTY_SIZE
+        selection = selection % Settings::MAX_PARTY_SIZE if @screen.multiSelectRange
+        selection = maxIndex if selection > maxIndex
       end
     end
     return selection
@@ -2469,6 +2469,8 @@ class PokemonStorageScreen
     end
     command = pbShowCommands(_INTL("Release {1} Pokémon?", finalReleased.length), [_INTL("No"), _INTL("Yes")])
     if command == 1
+      @multiSelectRange = nil
+      @scene.pbUpdateSelectionRect(0, 0)
       @scene.pbReleaseMulti(box, finalReleased)
       @storage.pbDeleteMulti(box, finalReleased)
       @scene.pbRefresh
@@ -2885,8 +2887,8 @@ class PokemonStorageScreen
 
     ret = []
 
-    for i in (rect.x)..(rect.x+rect.width-1)
-      for j in (rect.y)..(rect.y+rect.height-1)
+    for j in (rect.y)..(rect.y+rect.height-1)
+      for i in (rect.x)..(rect.x+rect.width-1)
         ret.push(getBoxIndex(box, i, j))
       end
     end
