@@ -167,14 +167,14 @@ def pbChangeLevel(pkmn, newlevel, scene)
     pbTopRightWindow(_INTL("Max. HP<r>{1}\r\nAttack<r>{2}\r\nDefense<r>{3}\r\nSp. Atk<r>{4}\r\nSp. Def<r>{5}\r\nSpeed<r>{6}",
                            pkmn.totalhp, pkmn.attack, pkmn.defense, pkmn.spatk, pkmn.spdef, pkmn.speed), scene)
     # Learn new moves upon level up
-    movelist = pkmn.getMoveList
+    movelist = pkmn.getMLStandard
     for i in movelist
       next if i[0] != pkmn.level
       pbLearnMove(pkmn, i[1], true) { scene.pbUpdate }
     end
     # Check for evolution
     newspecies = pkmn.check_evolution_on_level_up
-    if newspecies
+    if newspecies && (pkmn.kuray_no_evo? == 0 || $PokemonSystem.kuray_no_evo == 0)
       pbFadeOutInWithMusic {
         evo = PokemonEvolutionScene.new
         evo.pbStartScreen(pkmn, newspecies)

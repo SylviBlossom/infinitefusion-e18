@@ -38,9 +38,105 @@ class AnimatedBitmap
     end
   end
 
+  #KurayX - KURAYX_ABOUT_SHINIES
+  def pbGetRedChannel
+    redChannel = []
+    for i in 0..@bitmap.bitmap.width
+      for j in 0..@bitmap.bitmap.height
+        redChannel.push(@bitmap.bitmap.get_pixel(i, j).red)
+      end
+    end
+    return redChannel
+  end
 
+  #KurayX - KURAYX_ABOUT_SHINIES
+  def pbGetBlueChannel
+    blueChannel = []
+    for i in 0..@bitmap.bitmap.width
+      for j in 0..@bitmap.bitmap.height
+        blueChannel.push(@bitmap.bitmap.get_pixel(i, j).blue)
+      end
+    end
+    return blueChannel
+  end
+
+  #KurayX - KURAYX_ABOUT_SHINIES
+  def pbGetGreenChannel
+    greenChannel = []
+    for i in 0..@bitmap.bitmap.width
+      for j in 0..@bitmap.bitmap.height
+        greenChannel.push(@bitmap.bitmap.get_pixel(i, j).green)
+      end
+    end
+    return greenChannel
+  end
+
+  #KurayX - KURAYX_ABOUT_SHINIES
+  def pbGiveFinaleColor(shinyR, shinyG, shinyB, offset)
+    dontmodify = 0
+    if shinyR == 0 && shinyG == 1 && shinyB == 2
+      dontmodify = 1
+    end
+    @bitmap = nil
+    newbitmap = GifBitmap.new(@path, @filename, offset, shinyR, shinyG, shinyB)
+    @bitmap = newbitmap.copy
+    greenShiny = []
+    redShiny = []
+    blueShiny = []
+    if shinyR == 1 || shinyB == 1 || shinyG == 1
+      # Need Green
+      greenShiny = self.pbGetGreenChannel
+    end
+    if shinyG == 0 || shinyB == 0 || shinyR == 0
+      # Need Red
+      redShiny = self.pbGetRedChannel
+    end
+    if shinyG == 2 || shinyR == 2 || shinyB == 2
+      # Need Blue
+      blueShiny = self.pbGetBlueChannel
+    end
+    if shinyR == 1
+      canalRed = greenShiny.clone
+    elsif shinyR == 2
+      canalRed = blueShiny.clone
+    else
+      canalRed = redShiny.clone
+    end
+    if shinyG == 1
+      canalGreen = greenShiny.clone
+    elsif shinyG == 2
+      canalGreen = blueShiny.clone
+    else
+      canalGreen = redShiny.clone
+    end
+    if shinyB == 1
+      canalBlue = greenShiny.clone
+    elsif shinyB == 2
+      canalBlue = blueShiny.clone
+    else
+      canalBlue = redShiny.clone
+    end
+    # File.open('LogColors.txt' + ".txt", 'a') { |f| f.write("Inside !\r") }
+    if dontmodify == 0
+      # File.open('LogColors.txt' + ".txt", 'a') { |f| f.write("Modifying !\r") }
+      for i in 0..@bitmap.bitmap.width
+        for j in 0..@bitmap.bitmap.height
+          if @bitmap.bitmap.get_pixel(i, j).alpha != 0
+            depth = i*(@bitmap.bitmap.height+1)+j
+            @bitmap.bitmap.set_pixel(i, j, Color.new(canalRed[depth], canalGreen[depth], canalBlue[depth], @bitmap.bitmap.get_pixel(i, j).alpha))
+          end
+        end
+      end
+    end
+    # @bitmap = GifBitmap.new(@path, @filename, offset)
+  end
+
+  
   def shiftColors(offset = 0)
     @bitmap = GifBitmap.new(@path, @filename, offset)
+    # @bitmap = nil
+    # newbitmap = GifBitmap.new(@path, @filename, offset)
+    # @bitmap = newbitmap.clone
   end
 
   def [](index)
@@ -247,15 +343,32 @@ end
 #===============================================================================
 class GifBitmap
   attr_accessor :bitmap
+  ###KurayX - KURAYX_ABOUT_SHINIES
+  attr_accessor :rcode
+  attr_accessor :gcode
+  attr_accessor :bcode
+  ###KurayX - KURAYX_ABOUT_SHINIES
   attr_reader :loaded_from_cache
   # Creates a bitmap from a GIF file. Can also load non-animated bitmaps.
-  def initialize(dir, filename, hue = 0)
+  def initialize(dir, filename, hue = 0, rcode=0, gcode=1, bcode=2)
     @bitmap = nil
+    #KurayX - KURAYX_ABOUT_SHINIES
+    @rcode = 0
+    @gcode = 1
+    @bcode = 2
+    # @greenorigin = []
+    # @redorigin = []
+    # @blueorigin = []
+    # @greenoriginlocked = 0
+    # @blueoriginlocked = 0
+    # @redoriginlocked = 0
+    #KurayX - KURAYX_ABOUT_SHINIES
     @disposed = false
     @loaded_from_cache = false
     filename = "" if !filename
     begin
-      @bitmap = RPG::Cache.load_bitmap(dir, filename, hue)
+      #KurayX - KURAYX_ABOUT_SHINIES
+      @bitmap = RPG::Cache.load_bitmap(dir, filename, hue, rcode, gcode, bcode)
       @loaded_from_cache = true
     rescue
       @bitmap = nil
@@ -263,6 +376,58 @@ class GifBitmap
     @bitmap = BitmapWrapper.new(32, 32) if @bitmap.nil?
     @bitmap.play if @bitmap&.animated?
   end
+
+  ##### KURAYX
+
+  # def greenorigin
+  #   @greenorigin
+  # end
+
+  # def greenoriginlocked
+  #   @greenoriginlocked
+  # end
+
+  # def greenoriginlocked=(value)
+  #   @greenoriginlocked=value
+  # end
+
+  # def greenorigin=(value)
+  #   @greenorigin=value
+  # end
+
+  # def redorigin
+  #   @redorigin
+  # end
+
+  # def redoriginlocked
+  #   @redoriginlocked
+  # end
+
+  # def redoriginlocked=(value)
+  #   @redoriginlocked=value
+  # end
+
+  # def redorigin=(value)
+  #   @redorigin=value
+  # end
+
+  # def blueorigin
+  #   @blueorigin
+  # end
+
+  # def blueoriginlocked
+  #   @blueoriginlocked
+  # end
+
+  # def blueoriginlocked=(value)
+  #   @blueoriginlocked=value
+  # end
+
+  # def blueorigin=(value)
+  #   @blueorigin=value
+  # end
+
+  ##### KURAYX
 
   def [](_index)
     return @bitmap

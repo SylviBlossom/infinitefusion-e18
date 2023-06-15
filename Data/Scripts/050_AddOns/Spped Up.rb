@@ -28,7 +28,8 @@ PluginManager.register({
                        })
 
 # When the user clicks F, it'll pick the next number in this array.
-SPEEDUP_STAGES = [1,2,3]
+#KurayX
+SPEEDUP_STAGES = [1,2,3,4,5]
 
 
 def pbAllowSpeedup
@@ -41,6 +42,7 @@ end
 
 # Default game speed.
 $GameSpeed = 0
+System.set_window_title(System.game_title + " | Kuray's Shiny Revamp | Speed: x" + ($GameSpeed+1).to_s)
 $frame = 0
 $CanToggle = true
 
@@ -50,9 +52,17 @@ module Graphics
   end
 
   def self.update
+    if $CanToggle && Input.trigger?(Input::AUX2)
+      $GameSpeed -= 1
+      $GameSpeed = 0 if $GameSpeed < 0
+      #KurayX
+      System.set_window_title(System.game_title + " | Kuray's Shiny Revamp | Speed: x" + ($GameSpeed+1).to_s)
+    end
     if $CanToggle && Input.trigger?(Input::AUX1)
       $GameSpeed += 1
-      $GameSpeed = 0 if $GameSpeed >= SPEEDUP_STAGES.size
+      $GameSpeed = 4 if $GameSpeed >= SPEEDUP_STAGES.size
+      #KurayX
+      System.set_window_title(System.game_title + " | Kuray's Shiny Revamp | Speed: x" + ($GameSpeed+1).to_s)
     end
     $frame += 1
     return unless $frame % SPEEDUP_STAGES[$GameSpeed] == 0

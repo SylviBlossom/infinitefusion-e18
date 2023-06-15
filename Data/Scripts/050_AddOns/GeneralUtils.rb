@@ -47,26 +47,6 @@ def pbAddPokemonID(pokemon_id, level = 1, see_form = true, skip_randomize = fals
   return true
 end
 
-
-def addNewTripleFusion(pokemon1,pokemon2,pokemon3,level = 1)
-  return if !pokemon1
-  return if !pokemon2
-  return if !pokemon3
-
-  if pbBoxesFull?
-    pbMessage(_INTL("There's no more room for Pokémon!\1"))
-    pbMessage(_INTL("The Pokémon Boxes are full and can't accept any more!"))
-    return false
-  end
-
-  pokemon = TripleFusion.new(pokemon1,pokemon2,pokemon3,level)
-
-  pbMessage(_INTL("{1} obtained {2}!\\me[Pkmn get]\\wtnp[80]\1", $Trainer.name, pokemon.name))
-  pbNicknameAndStore(pokemon)
-  #$Trainer.pokedex.register(pokemon)
-  return true
-end
-
 def pbHasSpecies?(species)
   if species.is_a?(String) || species.is_a?(Symbol)
     id = getID(PBSpecies, species)
@@ -182,14 +162,16 @@ def getRandomCustomFusionForIntro(returnRandomPokemonIfNoneFound = true, customP
       randPoke << rand(maxPoke) + 1
     end
   end
+
   return randPoke
 end
 
-
 def addShinyStarsToGraphicsArray(imageArray, xPos, yPos, shinyBody, shinyHead, debugShiny, srcx=nil, srcy=nil, width=nil, height=nil,
-                                 showSecondStarUnder=false, showSecondStarAbove=false )
-  color = debugShiny ? Color.new(0,0,0,255) : nil
-  imageArray.push(["Graphics/Pictures/shiny",xPos,yPos,srcx,srcy,width,height,color])
+                                 showSecondStarUnder=false, showSecondStarAbove=false)
+  # color = debugShiny ? Color.new(0,0,0,255) : nil
+  color = nil
+  imageloc = "Graphics/Pictures/shiny"
+  imageArray.push([imageloc,xPos,yPos,srcx,srcy,width,height,color])
   if shinyBody && shinyHead
     if showSecondStarUnder
       yPos += 15
@@ -198,7 +180,7 @@ def addShinyStarsToGraphicsArray(imageArray, xPos, yPos, shinyBody, shinyHead, d
     else
       xPos -= 15
     end
-    imageArray.push(["Graphics/Pictures/shiny",xPos,yPos,srcx,srcy,width,height,color])
+    imageArray.push([imageloc,xPos,yPos,srcx,srcy,width,height,color])
   end
   # if onlyOutline
   #   imageArray.push(["Graphics/Pictures/shiny_black",xPos,yPos,srcx,srcy,width,height,color])

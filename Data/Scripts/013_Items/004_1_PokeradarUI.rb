@@ -101,6 +101,7 @@ class PokeRadar_UI
   end
 
 
+  #KurayX - KURAYX_ABOUT_SHINIES
   def createFusionIcon(pokemonId,x,y)
     bodyPoke_number = getBodyID(pokemonId)
     headPoke_number = getHeadID(pokemonId, bodyPoke_number)
@@ -112,14 +113,23 @@ class PokeRadar_UI
     bitmap1 = AnimatedBitmap.new(GameData::Species.icon_filename(headPoke))
     bitmap2 = AnimatedBitmap.new(GameData::Species.icon_filename(bodyPoke))
 
+    #KurayX Github
+    directory_name = "Graphics/Pokemon/FusionIcons"
+    Dir.mkdir(directory_name) unless File.exists?(directory_name)
+    bitmapFileName = sprintf("Graphics/Pokemon/FusionIcons/icon%03d", pokemonId)
+    headPokeFileName = GameData::Species.icon_filename(headPoke)
+    bitmapPath = sprintf("%s.png", bitmapFileName)
+    IO.copy_stream(headPokeFileName, bitmapPath)
+    result_bitmap = AnimatedBitmap.new(bitmapPath)
+
     for i in 0..bitmap1.width-1
       for j in ((bitmap1.height / 2) + Settings::FUSION_ICON_SPRITE_OFFSET)..bitmap1.height-1
         temp = bitmap2.bitmap.get_pixel(i, j)
-        bitmap1.bitmap.set_pixel(i, j, temp)
+        result_bitmap.bitmap.set_pixel(i, j, temp)
       end
     end
     icon = IconSprite.new(x, y)
-    icon.setBitmapDirectly(bitmap1)
+    icon.setBitmapDirectly(result_bitmap)
     return icon
   end
 

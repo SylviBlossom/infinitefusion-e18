@@ -5,18 +5,21 @@ module GameData
       species = GameData::Species.get(species).id_number # Just to be sure it's a number
       return self.egg_sprite_bitmap(species, pkmn.form) if pkmn.egg?
       if back
-        ret = self.back_sprite_bitmap(species, nil, nil, pkmn.shiny?,pkmn.bodyShiny?,pkmn.headShiny?)
+        #KurayX - KURAYX_ABOUT_SHINIES
+        ret = self.back_sprite_bitmap(species, nil, nil, pkmn.shiny?,pkmn.bodyShiny?,pkmn.headShiny?,pkmn.shinyValue?,pkmn.shinyR?,pkmn.shinyG?,pkmn.shinyB?)
       else
-        ret = self.front_sprite_bitmap(species, nil, nil, pkmn.shiny?,pkmn.bodyShiny?,pkmn.headShiny?)
+        #KurayX - KURAYX_ABOUT_SHINIES
+        ret = self.front_sprite_bitmap(species, nil, nil, pkmn.shiny?,pkmn.bodyShiny?,pkmn.headShiny?,pkmn.shinyValue?,pkmn.shinyR?,pkmn.shinyG?,pkmn.shinyB?)
       end
       return ret
     end
 
-    def self.sprite_bitmap_from_pokemon_id(id, back = false, shiny=false, bodyShiny=false,headShiny=false)
+    #KurayX - KURAYX_ABOUT_SHINIES
+    def self.sprite_bitmap_from_pokemon_id(id, back = false, shiny=false, bodyShiny=false,headShiny=false, pokeHue = 0, pokeR = 0, pokeG = 1, pokeB = 2)
       if back
-        ret = self.back_sprite_bitmap(id,nil,nil,shiny,bodyShiny,headShiny)
+        ret = self.back_sprite_bitmap(id,nil,nil,shiny,bodyShiny,headShiny,pokeHue,pokeR,pokeG,pokeB)
       else
-        ret = self.front_sprite_bitmap(id,nil,nil,shiny,bodyShiny,headShiny)
+        ret = self.front_sprite_bitmap(id,nil,nil,shiny,bodyShiny,headShiny,pokeHue,pokeR,pokeG,pokeB)
       end
       return ret
     end
@@ -26,6 +29,7 @@ module GameData
     ADDITIONAL_OFFSET_WHEN_TOO_CLOSE=40
     MINIMUM_DEX_DIF=20
 
+    #KurayBringingBack
     def self.calculateShinyHueOffset(dex_number, isBodyShiny = false, isHeadShiny = false)
       if dex_number <= NB_POKEMON
         if SHINY_COLOR_OFFSETS[dex_number]
@@ -50,7 +54,7 @@ module GameData
       return offset
     end
 
-
+    #KurayBringingBack
     def self.calculateShinyHueOffsetDefaultMethod(body_number,head_number,dex_number, isBodyShiny = false, isHeadShiny = false)
       dex_offset = dex_number
       #body_number = getBodyID(dex_number)
@@ -71,7 +75,9 @@ module GameData
       return offset
     end
 
-    def self.front_sprite_bitmap(dex_number, a = 0, b = 0, isShiny = false, bodyShiny = false, headShiny = false)
+    #KurayX - KURAYX_ABOUT_SHINIES
+    #KuraSprite
+    def self.front_sprite_bitmap(dex_number, a = 0, b = 0, isShiny = false, bodyShiny = false, headShiny = false, shinyValue = 0, shinyR = 0, shinyG = 1, shinyB = 2)
       #la méthode est utilisé ailleurs avec d'autres arguments (gender, form, etc.) mais on les veut pas
       if dex_number.is_a?(Symbol)
         dex_number = GameData::Species.get(dex_number).id_number
@@ -79,16 +85,30 @@ module GameData
       filename = self.sprite_filename(dex_number)
       sprite = (filename) ? AnimatedBitmap.new(filename) : nil
       if isShiny
-      sprite.shiftColors(self.calculateShinyHueOffset(dex_number, bodyShiny, headShiny))
+        # sprite.shiftColors(colorshifting)
+        #KurayBringBackOldShinies
+        if $PokemonSystem.kuraynormalshiny == 1
+          sprite.shiftColors(self.calculateShinyHueOffset(dex_number, bodyShiny, headShiny))
+        else
+          sprite.pbGiveFinaleColor(shinyR, shinyG, shinyB, shinyValue)
+        end
       end
       return sprite
     end
 
-    def self.back_sprite_bitmap(dex_number, b = 0, form = 0, isShiny = false, bodyShiny = false, headShiny = false)
+    #KurayX - KURAYX_ABOUT_SHINIES
+    #KuraSprite
+    def self.back_sprite_bitmap(dex_number, b = 0, form = 0, isShiny = false, bodyShiny = false, headShiny = false, shinyValue = 0, shinyR = 0, shinyG = 1, shinyB = 2)
       filename = self.sprite_filename(dex_number)
       sprite = (filename) ? AnimatedBitmap.new(filename) : nil
       if isShiny
-        sprite.shiftColors(self.calculateShinyHueOffset(dex_number, bodyShiny, headShiny))
+        # sprite.shiftColors(colorshifting)
+        #KurayBringBackOldShinies
+        if $PokemonSystem.kuraynormalshiny == 1
+          sprite.shiftColors(self.calculateShinyHueOffset(dex_number, bodyShiny, headShiny))
+        else
+          sprite.pbGiveFinaleColor(shinyR, shinyG, shinyB, shinyValue)
+        end
       end
       return sprite
     end

@@ -671,6 +671,7 @@ Events.onEndBattle += proc { |_sender,e|
   end
 }
 
+#EVOLUTION_PREVENT_KURAY
 def pbEvolutionCheck(currentLevels,scene=nil)
   for i in 0...currentLevels.length
     pkmn = $Trainer.party[i]
@@ -678,6 +679,7 @@ def pbEvolutionCheck(currentLevels,scene=nil)
     next if currentLevels[i] && pkmn.level==currentLevels[i]
     newSpecies = pkmn.check_evolution_on_level_up()
     next if !newSpecies
+    next if pkmn.kuray_no_evo? == 1 && $PokemonSystem.kuray_no_evo == 1
     evo = PokemonEvolutionScene.new
     evo.pbStartScreen(pkmn,newSpecies)
     evo.pbEvolution

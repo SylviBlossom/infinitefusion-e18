@@ -127,7 +127,11 @@ class GenOneStyle
 
   def initialize
     Kernel.pbDisplayText("Keybindings: F1", 80, 0, 99999)
-    Kernel.pbDisplayText("Version " + Settings::GAME_VERSION_NUMBER, 254, 308, 99999)
+    #KurayX Version System
+    kuraversion = "0.4.3"
+    Kernel.pbDisplayText("(Kuray's Shiny Revamp Mod by Reïzod#7670)", 254, 298, 99999)
+    Kernel.pbDisplayText("GameVer." + Settings::GAME_VERSION_NUMBER + " | ModVer." + kuraversion, 254, 334, 99999)
+    # Kernel.pbDisplayText("Version " + Settings::GAME_VERSION_NUMBER, 254, 308, 99999)
 
     @maxPoke = 140 #1st gen, pas de legend la premiere fois, graduellement plus de poke
     @customPokeList = getCustomSpeciesList(false)

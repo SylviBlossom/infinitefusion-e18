@@ -102,12 +102,15 @@ class DoublePreviewScreen
     pbUpdateSpriteHash(@sprites)
   end
 
-  def draw_window(dexNumber, level, x, y)
+  def draw_window(dexNumber, level, x, y, shiny, shinyV, shinyR, shinyG, shinyB)
     body_pokemon = getBodyID(dexNumber)
     head_pokemon = getHeadID(dexNumber, body_pokemon)
 
     picturePath = getPicturePath(head_pokemon, body_pokemon)
     bitmap = AnimatedBitmap.new(picturePath)
+    if shiny && $PokemonSystem.kuraynormalshiny != 1
+      bitmap.pbGiveFinaleColor(shinyR, shinyG, shinyB, shinyV)
+    end
     bitmap.scale_bitmap(Settings::FRONTSPRITE_SCALE)
 
     #hasCustom = picturePath.include?("CustomBattlers")
@@ -120,7 +123,7 @@ class DoublePreviewScreen
 
     drawFusionInformation(dexNumber, level, x)
 
-    if !$Trainer.seen?(dexNumber)
+    if !$Trainer.seen?(dexNumber) && $PokemonSystem.kurayfusepreview != 1
       if hasCustom
         previewwindow.picture.pbSetColor(150, 255, 150, 200)
       else

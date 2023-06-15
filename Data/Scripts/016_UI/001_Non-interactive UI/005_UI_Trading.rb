@@ -181,7 +181,7 @@ class PokemonTrade_Scene
     pbDisposeSpriteHash(@sprites)
     @viewport.dispose
     newspecies = @pokemon2.check_evolution_on_trade(@pokemon)
-    if newspecies
+    if newspecies && (@pokemon2.kuray_no_evo? == 0 || $PokemonSystem.kuray_no_evo == 0)
       evo = PokemonEvolutionScene.new
       evo.pbStartScreen(@pokemon2,newspecies)
       evo.pbEvolution(false)

@@ -358,7 +358,7 @@ ItemHandlers::UseOnPokemon.addIf(proc { |item| GameData::Item.get(item).is_evolu
                                      next false
                                    end
                                    newspecies = pkmn.check_evolution_on_use_item(item)
-                                   if newspecies
+                                   if newspecies && (pkmn.kuray_no_evo? == 0 || $PokemonSystem.kuray_no_evo == 0)
                                      pbFadeOutInWithMusic {
                                        evo = PokemonEvolutionScene.new
                                        evo.pbStartScreen(pkmn, newspecies)
@@ -789,7 +789,6 @@ ItemHandlers::UseOnPokemon.add(:RARECANDY, proc { |item, pkmn, scene|
     scene.pbDisplay(_INTL("It won't have any effect."))
     next false
   end
-  pbSet(VAR_STAT_RARE_CANDY,pbGet(VAR_STAT_RARE_CANDY)+1)
   pbChangeLevel(pkmn, pkmn.level + 1, scene)
   scene.pbHardRefresh
   next true

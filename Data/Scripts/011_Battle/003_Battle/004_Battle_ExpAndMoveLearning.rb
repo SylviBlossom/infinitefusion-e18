@@ -166,12 +166,18 @@ class PokeBattle_Battle
     end
     curLevel = pkmn.level
     newLevel = growth_rate.level_from_exp(expFinal)
-    if newLevel < curLevel
-      debugInfo = "Levels: #{curLevel}->#{newLevel} | Exp: #{pkmn.exp}->#{expFinal} | gain: #{expGained}"
-      raise RuntimeError.new(
-        _INTL("{1}'s new level is less than its\r\ncurrent level, which shouldn't happen.\r\n[Debug: {2}]",
-              pkmn.name, debugInfo))
+    if $PokemonSystem.kuraylevelcap != 0
+      levelcap = getkuraylevelcap()
+      if curLevel >= levelcap
+        return
+      end
     end
+    # if newLevel < curLevel
+    #   debugInfo = "Levels: #{curLevel}->#{newLevel} | Exp: #{pkmn.exp}->#{expFinal} | gain: #{expGained}"
+    #   raise RuntimeError.new(
+    #     _INTL("{1}'s new level is less than its\r\ncurrent level, which shouldn't happen.\r\n[Debug: {2}]",
+    #           pkmn.name, debugInfo))
+    # end
     # Give Exp
     if pkmn.shadowPokemon?
       pkmn.exp += expGained
@@ -179,6 +185,7 @@ class PokeBattle_Battle
     end
     tempExp1 = pkmn.exp
     battler = pbFindBattler(idxParty)
+    levelwas = 0
     loop do
       # For each level gained in turn...
       # EXP Bar animation
@@ -197,7 +204,20 @@ class PokeBattle_Battle
       end
       @scene.pbEXPBar(battler, levelMinExp, levelMaxExp, tempExp1, tempExp2)
       tempExp1 = tempExp2
-      curLevel += 1
+      if $PokemonSystem.kuraylevelcap != 0
+        levelcap = getkuraylevelcap()
+        if newLevel > levelcap
+          newLevel = levelcap
+        end
+        if curLevel < levelcap
+          curLevel += 1
+        end
+      else
+        curLevel += 1
+      end
+      if levelwas == curLevel
+        break
+      end
       if curLevel > newLevel
         # Gained all the Exp now, end the animation
         pkmn.calc_stats
@@ -219,15 +239,16 @@ class PokeBattle_Battle
       pkmn.calc_stats
       battler.pbUpdate(false) if battler
       @scene.pbRefreshOne(battler.index) if battler
+      levelwas = curLevel
       pbDisplayPaused(_INTL("{1} grew to Lv. {2}!", pkmn.name, curLevel))
       if !$game_switches[SWITCH_NO_LEVELS_MODE]
         @scene.pbLevelUp(pkmn, battler, oldTotalHP, oldAttack, oldDefense,
-                         oldSpAtk, oldSpDef, oldSpeed)
+                        oldSpAtk, oldSpDef, oldSpeed)
       end
 
-      # Learn all moves learned at this level
-      moveList = pkmn.getMoveList
-      moveList.each { |m| pbLearnMove(idxParty, m[1]) if m[0] == curLevel }
+        # Learn all moves learned at this level
+        moveList = pkmn.getMLStandard
+        moveList.each { |m| pbLearnMove(idxParty, m[1]) if m[0] == curLevel }
     end
   end
 

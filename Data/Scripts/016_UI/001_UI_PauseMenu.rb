@@ -113,10 +113,12 @@ class PokemonPauseMenu
     cmdDebug = -1
     cmdQuit = -1
     cmdEndGame = -1
+    cmdPC = -1
     if $Trainer.has_pokedex && $Trainer.pokedex.accessible_dexes.length > 0
       commands[cmdPokedex = commands.length] = _INTL("Pokédex")
     end
     commands[cmdPokemon = commands.length] = _INTL("Pokémon") if $Trainer.party_count > 0
+    commands[cmdPC = commands.length] = _INTL("PC") if $game_switches[SWITCH_GOT_BADGE_16] && $PokemonSystem.kurayfusepreview
     commands[cmdBag = commands.length] = _INTL("Bag") if !pbInBugContest?
     commands[cmdPokegear = commands.length] = _INTL("Pokégear") if $Trainer.has_pokegear
     commands[cmdTrainer = commands.length] = $Trainer.name
@@ -173,6 +175,15 @@ class PokemonPauseMenu
           #   }
           # end
         end
+      # cmdPC = KurayPC #KurayX PC
+      elsif cmdPC >= 0 && command == cmdPC
+        pbPlayDecisionSE
+        pbFadeOutIn {
+          scene = PokemonStorageScene.new
+          screen = PokemonStorageScreen.new(scene, $PokemonStorage)
+          screen.pbStartScreen(0)
+          $once = 0
+        }
       elsif cmdPokemon >= 0 && command == cmdPokemon
         pbPlayDecisionSE
         hiddenmove = nil

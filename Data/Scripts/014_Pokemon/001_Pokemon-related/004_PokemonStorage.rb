@@ -89,7 +89,7 @@ class PokemonStorage
        _INTL("Distortion"),_INTL("Contest"),_INTL("Nostalgic 2"),_INTL("Croagunk"),
        _INTL("Trio 2"),_INTL("PikaPika 2"),_INTL("Legend 2"),_INTL("Team Galactic 2"),
        _INTL("Heart"),_INTL("Soul"),_INTL("Big Brother"),_INTL("Pokéathlon"),
-       _INTL("Trio 3"),_INTL("Spiky Pika"),_INTL("Kimono Girl"),_INTL("Revival")
+       _INTL("Trio 3"),_INTL("Spiky Pika"),_INTL("Kimono Girl"),_INTL("Revival"),
     ]
   end
 
@@ -101,6 +101,7 @@ class PokemonStorage
   def isAvailableWallpaper?(i)
     @unlockedWallpapers = [] if !@unlockedWallpapers
     return true if i<BASICWALLPAPERQTY
+    return true if i>39
     return true if @unlockedWallpapers[i]
     return false
   end
@@ -172,6 +173,35 @@ class PokemonStorage
     else
       @boxes[x][y] = value
     end
+  end
+
+  #Kuray
+  def pbImportKuray(boxDst,indexDst,importpoke)
+    if indexDst<0 && boxDst<self.maxBoxes
+      found = false
+      for i in 0...maxPokemon(boxDst)
+        next if self[boxDst,i]
+        found = true
+        indexDst = i
+        break
+      end
+      return false if !found
+    end
+    if boxDst==-1   # Copying into party
+      return false if party_full?
+      self.party[self.party.length] = importpoke.clone
+      # self.party[self.party.length] = importpoke
+      self.party.compact!
+    else   # Copying into box
+      pkmn = importpoke.clone
+      # pkmn = importpoke
+      raise "Trying to copy nil to storage" if !pkmn
+      pkmn.time_form_set = nil
+      pkmn.form          = 0 if pkmn.isSpecies?(:SHAYMIN)
+      pkmn.heal
+      self[boxDst,indexDst] = pkmn
+    end
+    return true
   end
 
   def pbCopy(boxDst,indexDst,boxSrc,indexSrc)

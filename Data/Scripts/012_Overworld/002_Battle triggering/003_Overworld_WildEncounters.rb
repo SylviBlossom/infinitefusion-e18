@@ -215,6 +215,7 @@ class PokemonEncounters
   def have_double_wild_battle?
     return false if $PokemonTemp.forceSingleBattle
     return false if pbInSafari?
+    return true if $PokemonSystem.force_double_wild == 1
     return true if $PokemonGlobal.partner
     return false if $Trainer.able_pokemon_count <= 1
     return true if $game_player.pbTerrainTag.double_wild_encounters && rand(100) < 30
@@ -272,6 +273,7 @@ class PokemonEncounters
   # For the current map, randomly chooses a species and level from the encounter
   # list for the given encounter type. Returns nil if there are none defined.
   # A higher chance_rolls makes this method prefer rarer encounter slots.
+  #KurayX
   def choose_wild_pokemon(enc_type, chance_rolls = 1)
     if !enc_type || !GameData::EncounterType.exists?(enc_type)
       raise ArgumentError.new(_INTL("Encounter type {1} does not exist", enc_type))
@@ -293,7 +295,9 @@ class PokemonEncounters
       if favored_type
         new_enc_list = []
         enc_list.each do |enc|
-          species_data = GameData::Species.get(enc[0])
+          #KurayX Github
+          species_data = GameData::Species.get(enc[1])
+          # species_data = GameData::Species.get(enc[0])
           t1 = species_data.type1
           t2 = species_data.type2
           new_enc_list.push(enc) if t1 == favored_type || t2 == favored_type
