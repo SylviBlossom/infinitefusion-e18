@@ -2435,7 +2435,7 @@ class PokemonStorageScreen
         heldY = held[2] + selectedPos[1]
         pokemon.time_form_set = nil
         pokemon.form = 0 if pokemon.isSpecies?(:SHAYMIN)
-        pokemon.heal
+        #pokemon.heal
         @storage[box, heldX + heldY * PokemonBox::BOX_WIDTH] = pokemon
       end
     else
@@ -2449,7 +2449,7 @@ class PokemonStorageScreen
         pokemon = held[0]
         pokemon.time_form_set = nil
         pokemon.form = 0 if pokemon.isSpecies?(:SHAYMIN)
-        pokemon.heal
+        #pokemon.heal
         @storage.party.push(pokemon)
       end
     end
