@@ -1165,9 +1165,14 @@ class PokemonStorageScene
         end
         ret = pbSelectPartyInternal(party, false)
         if ret < 0
-          pbHidePartyTab
-          @selection = 0
-          @choseFromParty = false
+          if @screen.multiSelectRange
+            @screen.multiSelectRange = nil
+            pbUpdateSelectionRect(0, 0)
+          else
+            pbHidePartyTab
+            @selection = 0
+            @choseFromParty = false
+          end
         else
           @choseFromParty = true
           return [-1, ret]
